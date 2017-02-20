@@ -1,6 +1,6 @@
 # Redial Congress
 
-Calling members of the US Congress is [the best way](https://www.nytimes.com/2016/11/22/us/politics/heres-why-you-should-call-not-email-your-legislators.html) for a constituent's voice to be heard. But it's often a nuisance of overloaded switchboards and endless busy signals. This application aims to reduce that hassle.
+Calling members of the US Congress is [the best way](https://www.nytimes.com/2016/11/22/us/politics/heres-why-you-should-call-not-email-your-legislators.html) for a constituent's voice to be heard. But it's often a nuisance of overloaded switchboards and endless busy signals. This application aims to reduce that hassle by automatically redialing until the call is connected.
 
 ## Getting started
 
@@ -8,7 +8,7 @@ You'll need a [Twilio](https://www.twilio.com) account and inbound number, and a
 
 The application needs access to a [Redis](https://redis.io/) instance and depends on the Python packages listed in [requirements.txt](./requirements.txt) (``pip install -r requirements.txt``).
 
-Copy (config.example.py)[./config.example.py] to `config.py` and set all necessary values.
+Copy [config.example.py](./config.example.py) to `config.py` and set all necessary values.
 
 To run the application for development:
 
