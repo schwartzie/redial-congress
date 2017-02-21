@@ -68,6 +68,18 @@ def search_by_dialpad(digits):
 	subset = [member for member in get_current_members() if member['search_dial'].startswith(re.sub(r'[^2-9]', '', digits))]
 	return sorted(subset, cmp=lambda a, b: cmp(a['sort'], b['sort']))
 
+def search_by_zip(query):
+	normalized_query = re.sub(r'[^0-9]', '', query)
+	zip_tuples = [z for z in geo_data.get_zip_state_cd_tuples() if z['zip'].startswith(normalized_query)]
+	districts = list(set(
+		[z['state'] for z in zip_tuples]
+		+ ["{0}{1}".format(z['state'], z['cd']) for z in zip_tuples]
+	))
+	print(districts)
+	subset = [member for member in get_current_members() if member['search_district'] in districts]
+	print(subset)
+
+
 if __name__ == "__main__":
 	print(json.dumps(get_current_members(), indent=2))
 
