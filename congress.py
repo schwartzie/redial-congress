@@ -55,7 +55,7 @@ def get_current_members():
 	members = []
 
 	for member in utils.csv_url_to_dicts(DATA_CSV):
-		if member['in_office'] == '1':
+		if member['in_office'] == '1' and member['phone'] != '':
 			# only include members currently in office
 			firstname = get_first_name(member['firstname'], member['middlename'], member['nickname'])
 			members.append({
