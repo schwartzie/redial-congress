@@ -1,25 +1,10 @@
 import json
 import re
 import utils
+import geo_data
 
 # A convenient list of members of Congress in CSV form
 DATA_CSV = 'http://unitedstates.sunlightfoundation.com/legislators/legislators.csv'
-
-# Map of state codes to full names for spoken prompts
-state_map = {'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
-             'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'DC': 'District of Columbia',
-             'FL': 'Florida', 'GA': 'Georgia', 'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois',
-             'IN': 'Indiana', 'IA': 'Iowa', 'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana',
-             'ME': 'Maine', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire',
-             'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina',
-             'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma', 'OR': 'Oregon', 'MD': 'Maryland',
-             'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
-             'MO': 'Missouri', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
-             'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
-             'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin',
-             'WY': 'Wyoming', 'AS': 'American Samoa', 'FM': 'Federated States of Micronesia',
-             'GU': 'Guam', 'MH': 'Marshall Islands', 'MP': 'Northern Mariana Islands',
-             'PW': 'Palau', 'PR': 'Puerto Rico', 'VI': 'Virgin Islands'}
 
 # Map of title abbreviations to full names for spoken prompts
 title_map = {'Rep': 'Representative', 'Sen': 'Senator', 'Del': 'Delegate', 'Com': 'Commissioner'}
@@ -48,6 +33,8 @@ def get_current_members():
 	Get current members of Congress as a list of standardized dicts.
 	'''
 	global current_members
+
+	state_map = geo_data.get_state_name_map()
 
 	if current_members != None:
 		return current_members
