@@ -10,6 +10,8 @@ The application needs access to a [Redis](https://redis.io/) instance and depend
 
 Copy [config.example.py](./config.example.py) to `config.py` and set all necessary values.
 
+Generate the ZIP code data cache by running `python geo_data.py > zip_codes.json`.
+
 To run the application for development:
 
 ```
