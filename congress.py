@@ -69,7 +69,7 @@ def search_by_dialpad(digits):
 	return sorted(subset, cmp=lambda a, b: cmp(a['sort'], b['sort']))
 
 def search_by_zip(query):
-	normalized_query = re.sub(r'[^0-9]', '', query)
+	normalized_query = re.sub(r'[^0-9]', '', str(query))
 	zip_tuples = [z for z in geo_data.get_zip_state_cd_tuples() if z['zip'].startswith(normalized_query)]
 	districts = list(set(
 		[z['state'] for z in zip_tuples]
