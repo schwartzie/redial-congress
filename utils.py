@@ -3,14 +3,14 @@ import re
 import csv
 import urllib2
 
-def csv_url_to_dicts(url):
+def csv_url_to_dicts(url, ignore_first=0, **csv_parse_args):
 	'''
 	Retrieve CSV from URL. Parse into an array of dicts,
 	assuming headers are on first line.
 	'''
-	lines = urllib2.urlopen(url).read().rstrip().split("\n")
+	lines = urllib2.urlopen(url).read().rstrip().split("\n")[ignore_first:]
 
-	line_iter = csv.reader(lines)
+	line_iter = csv.reader(lines, **csv_parse_args)
 
 	headers = None
 
