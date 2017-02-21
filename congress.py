@@ -46,12 +46,11 @@ def get_current_members():
 			# only include members currently in office
 			firstname = get_first_name(member['firstname'], member['middlename'], member['nickname'])
 			members.append({
-				'label': "{0} {1} {2} of {3}".format(
+				'label': " ".join([
 					title_map[member['title']],
 					utils.remove_diacritics(firstname),
-					utils.remove_diacritics(member['lastname']),
-					state_map[member['state']]
-				),
+					utils.remove_diacritics(member['lastname'])
+				]),
 				'state': member['state'],
 				'search_district': "{0}{1}".format(member['state'], member['district'].zfill(2) if 'Seat' not in member['district'] else ''),
 				'search_dial': utils.str_to_dialpad(member['lastname']),
@@ -75,10 +74,8 @@ def search_by_zip(query):
 		[z['state'] for z in zip_tuples]
 		+ ["{0}{1}".format(z['state'], z['cd']) for z in zip_tuples]
 	))
-	print(districts)
 	subset = [member for member in get_current_members() if member['search_district'] in districts]
-	print(subset)
-
+	return sorted(subset, cmp=lambda a, b: cmp(a['sort'], b['sort']))
 
 if __name__ == "__main__":
 	print(json.dumps(get_current_members(), indent=2))

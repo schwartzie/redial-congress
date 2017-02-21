@@ -6,6 +6,7 @@ class CallStateManager(object):
 	KEY_ATTEMPTS = 'call:{0}:attempts'
 	KEY_ORIGIN = 'call:{0}:origin'
 	KEY_QUERY = 'call:{0}:query'
+	KEY_CALLER_DATA = 'caller:{0}:data'
 
 	def __init__(self, conn_args={}, ttl=3600):
 		self.conn_args = conn_args
@@ -117,3 +118,14 @@ class CallStateManager(object):
 		'''
 		attempts_key = self.get_attempts_key(inbound_sid)
 		return self.cache.lindex(attempts_key, 0)
+
+	def get_caller_key(self, inbound_number):
+		return self.__class__.KEY_CALLER_DATA.format(inbound_number)
+
+	def get_caller_data(self, inbound_number):
+		key = self.get_caller_key(inbound_number)
+		return self.cache.hgetall(key)
+
+	def set_caller_data(self, inbound_number, **fields):
+		key = self.get_caller_key(inbound_number)
+		self.cache.hmset(key, fields)

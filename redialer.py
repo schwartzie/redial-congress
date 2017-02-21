@@ -15,7 +15,6 @@ TWILIO_VOICE = app.config['TWILIO_VOICE']
 TRC =twilio.rest.TwilioRestClient(**app.config['TWILIO_REST_CLIENT_KWARGS'])
 CallState = CallStateManager(conn_args=app.config['REDIS_CLIENT_KWARGS'], ttl=app.config['REDIS_TTL'])
 
-
 def start_outbound_call(response, inbound_sid, from_, to, label):
 	'''
 	Initiate an outbound call wrapped in a TwiML response. Park the inbound
@@ -53,6 +52,8 @@ def attempt_outbound_call(inbound_sid, from_, to):
 	)
 	CallState.log_new_attempt(inbound_sid, outbound_call)
 
+def zip_pad(zip_code):
+	return " ".join(list(zip_code))
 
 @app.route("/", methods=['POST'])
 def greet_caller():
@@ -67,92 +68,88 @@ def greet_caller():
 	CallState.set_data(request.form['CallSid'], **call_data)
 	response = twilio.twiml.Response()
 	response.say("Hello fellow American!", voice=TWILIO_VOICE)
-	response.redirect(url_for('search_by_name'))
+
+	caller_data = CallState.get_caller_data(request.form['From'])
+	if caller_data and 'zip' in caller_data:
+		with response.gather(numDigits=1, timeout=1, action=url_for('set_zip_code')) as g:
+			g.say("I see you've called before from zip code {0}. Press star to enter a different zip code.".format(zip_pad(caller_data['zip'])), voice=TWILIO_VOICE)
+		response.redirect(url_for('select_member'))
+	else:
+		response.redirect(url_for('set_zip_code'))
+
 	return str(response)
 
-
-@app.route("/search_by_name", methods=['POST'])
-def search_by_name():
+@app.route("/set_zip_code", methods=['POST'])
+def set_zip_code():
 	'''
-	Search for members of Congress by entering a name on a telephone dialpad.
+	Search for members of Congress by entering a ZIP code
 	'''
 	inbound_sid = request.form['CallSid']
 	response = twilio.twiml.Response()
-	gather_kwargs = {'numDigits': 1, 'timeout': 30, 'action': url_for('search_by_name')}
+	gather_kwargs = {'numDigits': 5, 'timeout': 15, 'finishOnKey': '*', 'action': url_for('set_zip_code')}
 
 	if 'Digits' not in request.form:
 		# Start new search if no dialpad digits POSTed on this request
-		CallState.clear_query(inbound_sid)
 		with response.gather(**gather_kwargs) as g:
-			g.say("Please enter the last name of the member of Congress you want to call. Press star to start over.", voice=TWILIO_VOICE)
+			g.say("Please enter your zip code. Press star to start over.", voice=TWILIO_VOICE)
+	elif len(request.form['Digits']) < 5:
+		# Start over
+		response.redirect(url_for('set_zip_code'))
 	else:
-		# Continue existing search if there are dialpad digits attached to this request.
-		# Append current digits to existing query, and search for results.
-		CallState.append_to_query(inbound_sid, request.form['Digits'])
-		query = CallState.get_query(inbound_sid)
+		zip_code = request.form['Digits']
 
-		results = congress.search_by_dialpad(query)
+		results = congress.search_by_zip(zip_code)
 
-		if request.form['Digits'] in '*#':
-			# Start over
-			response.redirect(url_for('search_by_name'))
-		elif len(results) == 0:
+		if len(results) == 0:
 			# start over
-			response.say("I can't find anyone whose last name matches your entry. Let's try again.", voice=TWILIO_VOICE)
-			response.redirect(url_for('search_by_name'))
-		elif len(results) == 1:
-			# Dial single remaining result
+			response.say("I can't find any members of Congress for zip code {0}. Let's try again.".format(zip_pad(zip_code)), voice=TWILIO_VOICE)
+			response.redirect(url_for('set_zip_code'))
+		else:
+			# set zip and redirect to listing of members
+			CallState.set_caller_data(request.form['From'], zip=zip_code)
+			response.redirect(url_for('select_member'))
+
+	return str(response)
+
+@app.route("/select_member", methods=['POST'])
+def select_member():
+	'''
+	List members of Congress for the current zipcode
+	'''
+	inbound_sid = request.form['CallSid']
+	caller_data = CallState.get_caller_data(request.form['From'])
+	zip_code = caller_data['zip']
+	results = congress.search_by_zip(zip_code)
+
+	response = twilio.twiml.Response()
+
+	if 'Digits' not in request.form:
+		# Offer user menu of result options to select from.
+		digits_to_gather = int(math.floor(math.log10(len(results)))+1)
+		response.say("I've found {0} members of Congress for zip code {1}.".format(len(results), zip_pad(zip_code)), voice=TWILIO_VOICE)
+		with response.gather(numDigits=digits_to_gather, timeout=20, action=url_for('select_member')) as g:
+			for i, member in enumerate(results):
+				g.say("Press {0} for {1}.".format(i + 1, member['label']), voice=TWILIO_VOICE)
+			g.say("Or press star to enter a new zip code.", voice=TWILIO_VOICE)
+	else:
+		if request.form['Digits'] in '*#':
+			response.redirect(url_for('set_zip_code'))	
+			return str(response)
+
+		try:
+			selection_index = int(request.form['Digits']) - 1
+
+			member = results[selection_index]
 			start_outbound_call(
 				response=response,
 				inbound_sid=request.form['CallSid'],
 				from_=request.form['To'],
-				to=results[0]['phone'],
-				label=results[0]['label']
+				to=member['phone'],
+				label=member['label']
 			)
-		elif len(results) < 10 and len(results) > len(set([m['search_dial'] for m in results])):
-			# Short list of remaining results with some duplication of dialpad mapping
-			# Offer user menu of result options to select from.
-			digits_to_gather = int(math.floor(math.log10(len(results)))+1)
-			response.say("I've found {0} options for you.".format(len(results)), voice=TWILIO_VOICE)
-			with response.gather(numDigits=digits_to_gather, timeout=20, action=url_for('pick_search_result')) as g:
-				for i, member in enumerate(results):
-					g.say("Dial {0} for {1}.".format(i + 1, member['label']), voice=TWILIO_VOICE)
-				g.say("Or press star to start over", voice=TWILIO_VOICE)
-		else:
-			# Continue refining the query
-			response.gather(**gather_kwargs)
-
-	return str(response)
-
-@app.route("/pick_search_result", methods=['POST'])
-def pick_search_result():
-	'''
-	Connect an outbound call based on the user-selected search result choice.
-	'''
-	inbound_sid = request.form['CallSid']
-	query = CallState.get_query(inbound_sid)
-	results = congress.search_by_dialpad(query)
-
-	response = twilio.twiml.Response()
-
-	if request.form['Digits'] in '*#':
-		response.redirect(url_for('search_by_name'))	
-		return str(response)
-
-	try:
-		selection_index = int(request.form['Digits']) - 1
-
-		member = results[selection_index]
-		start_outbound_call(
-			response=response,
-			inbound_sid=request.form['CallSid'],
-			from_=request.form['To'],
-			to=member['phone'],
-			label=member['label']
-		)
-	except IndexError:
-		response.say("Sorry, your entry doesn't match any of the available options. Let's try again.", voice=TWILIO_VOICE)
-		response.redirect(url_for('search_by_name'))
+		except IndexError:
+			response.say("Sorry, your entry doesn't match any of the available options. Let's try again.", voice=TWILIO_VOICE)
+			response.redirect(url_for('select_member'))
 
 	return str(response)
 
