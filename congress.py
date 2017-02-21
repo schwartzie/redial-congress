@@ -53,11 +53,10 @@ def get_current_members():
 					state_map[member['state']]
 				),
 				'state': member['state'],
-				'state_label': state_map[member['state']],
-				'search_term': member['lastname'],
+				'search_district': "{0}{1}".format(member['state'], member['district'].zfill(2) if 'Seat' not in member['district'] else ''),
 				'search_dial': utils.str_to_dialpad(member['lastname']),
 				'phone': "+1{0}".format(re.sub(r'[^0-9]', '', member['phone'])),
-				'sort': "{0}|{1}|{2}".format(title_rank_map[member['title']], member['lastname'], firstname)
+				'sort': utils.remove_diacritics("{0}|{1}|{2}".format(title_rank_map[member['title']], member['lastname'], firstname))
 			})
 	current_members = members
 	return members
